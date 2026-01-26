@@ -1,24 +1,18 @@
 #ifndef OUTPUTS_H
 #define OUTPUTS_H
 
-#include <stdint.h>
+#include "timer.h"
 
-/* Estructura usada para el temporizador (segundos actuales) */
-typedef struct {
-    int segundos;
-} timer;
-
-/* Temporizador compartido (definido en otro archivo) */
-extern volatile timer temporizador;
-
-/* Inicializa OLED SH1106 (I2C) y buzzer */
+/* Init del módulo (1 vez) */
 void outputs_init(void);
 
-/* Actualiza OLED/buzzer de forma no bloqueante */
-void outputs_update(void);
+/* Refresco con snapshot del temporizador */
+void outputs_update(timer t);
 
-/* Funciones llamadas desde la FSM */
-void action_show_time(void);
+/* Apagar pantalla */
+void outputs_off(void);
+
+/* Acciones que llama la FSM */
 void action_show_zero(void);
 void action_buzzer_on(void);
 void action_buzzer_off(void);
