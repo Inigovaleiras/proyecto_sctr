@@ -90,7 +90,6 @@ eventos generador_eventos(estados st, inputs in, timer t)
         case STATE_CONFIG:
             if (in.suma30 || in.resta30) return EV_INTRODUCE_TIEMPO;
             if (in.start && in.puerta_cerrada && t.segundos > 0) return EV_CALENTAR;
-            if (in.puerta_abierta) return EV_PARAR;   /* opcional: abrir puerta pausa */
             return EV_NONE;
 
         case STATE_HEATING:
@@ -100,7 +99,7 @@ eventos generador_eventos(estados st, inputs in, timer t)
 
         case STATE_PAUSE:
             /* reanudar cuando se cierre la puerta y aún quede tiempo */
-            if (in.puerta_cerrada && t.segundos > 0) return EV_REANUDAR;
+            if (in.start && in.puerta_cerrada && t.segundos > 0) return EV_REANUDAR;
 
             /* si quieres que al llegar a 0 en pausa también vaya a DONE, descomenta:
             if (t.segundos == 0) return EV_TERMINADO;
@@ -297,4 +296,5 @@ int main(void)
 }
 
 }
+
 
