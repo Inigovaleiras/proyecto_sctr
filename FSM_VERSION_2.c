@@ -49,7 +49,7 @@ typedef struct {
    ======================= */
 
 inputs read_inputs(void);
-
+void inputs_init(void);
 /* timer hardware */
 void  timer_init(timer *t_ptr);
 timer timer_get(void);
@@ -64,7 +64,7 @@ void action_reset_all(void);
 /* outputs */
 void outputs_update(timer t);
 void outputs_off(void);
-
+void outputs_init(void);
 /* funciones de timer */
 void timer_add_30(void);
 void timer_sub_30(void);
@@ -252,7 +252,8 @@ int main(void)
 {
     estados estado_actual = STATE_OFF;
     eventos evento_actual;
-
+    outputs_init();
+    inputs_init();
     timer temporizador = { .segundos = 0 };
 
     /* arranca el timer hardware apuntando al temporizador real */
@@ -297,6 +298,7 @@ int main(void)
 }
 
 }
+
 
 
 
