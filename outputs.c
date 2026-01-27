@@ -38,7 +38,7 @@ static absolute_time_t next_refresh;
    Si el buzzer se apaga “dentro” de outputs_update, se quedaría sonando.
    Por eso lo apagamos con una alarma (callback) independiente.
 */
-static bool buzzer_active = false;     // estado lógico del buzzer
+static bool buzzer_active = false;      // estado lógico del buzzer
 static alarm_id_t buzzer_alarm_id = -1; // id de la alarma activa (si hay)
 
 /* Encender/apagar buzzer por GPIO */
@@ -194,6 +194,18 @@ void action_buzzer_off(void) {
     buzzer_active = false;
     buzzer_set(false);
 }
+
+/* Reset general de SALIDAS (para EV_RESET o volver a OFF limpio)
+   - Apaga buzzer (y cancela su alarma)
+   - Deja la pantalla en 00:00 (o si prefieres pantalla apagada, cambia por outputs_off())
+*/
+void action_reset_all(void) {
+    action_buzzer_off();
+    action_show_zero();
+    // Si tu lógica de OFF apaga pantalla en el main con outputs_off(),
+    // también podrías poner outputs_off() aquí en lugar de show_zero().
+}
+
 
 
 
