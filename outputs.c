@@ -179,7 +179,7 @@ void action_buzzer_on(void) {
     buzzer_active = true;
     buzzer_set(true);
 
-    // Programa apagado automático en 800 ms
+    // Programa apagado automático en 2000 ms
     buzzer_alarm_id = add_alarm_in_ms(2000, buzzer_alarm_cb, NULL, false);
 }
 
@@ -194,6 +194,7 @@ void action_buzzer_off(void) {
     buzzer_active = false;
     buzzer_set(false);
 }
+
 
 
 
