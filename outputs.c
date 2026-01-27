@@ -98,7 +98,7 @@ static void draw_time_mmss(int seconds) {
 
     // Pantalla: SOLO números y ":"
     SH1106_clear(&oled);
-    SH1106_drawString(&oled, (char*)buf, 0, 0, OLED_COLOR_ON, font_inconsolata);
+    SH1106_drawString(&oled, (char*)buf, 0, 0, OLED_COLOR_ON, inconsolata);
     SH1106_draw(&oled);
 }
 /* ------------------------------------------------------------- */
@@ -205,6 +205,7 @@ void action_reset_all(void) {
     // Si tu lógica de OFF apaga pantalla en el main con outputs_off(),
     // también podrías poner outputs_off() aquí en lugar de show_zero().
 }
+
 
 
 
