@@ -10,7 +10,7 @@ static volatile timer *t = NULL;
 // Función a la que la raspberry va a llamar cad 1sg
 static bool cb_1s(struct repeating_timer *x) {
     (void)x;  // evitamos warning "unused parameter"
-    timer_tick_1s();
+    timer_tick_isr();
     return true;
 }
 
@@ -83,6 +83,7 @@ void timer_tick_isr(void) {
         }
     }
 }
+
 
 
 
