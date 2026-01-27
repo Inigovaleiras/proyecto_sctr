@@ -53,7 +53,7 @@ inputs read_inputs(void);
 /* timer hardware */
 void  timer_init(timer *t_ptr);
 timer timer_get(void);
-
+timer timer_reset(void);
 /* acciones (salidas / timer) */
 void action_show_zero(void);
 void action_start_timer(void);
@@ -191,6 +191,7 @@ estados trans_pause_terminado(void)
 estados trans_done_reset(void)
 {
     action_reset_all();
+    timer_reset();
     return STATE_OFF;
 }
 
@@ -296,5 +297,6 @@ int main(void)
 }
 
 }
+
 
 
