@@ -68,13 +68,12 @@ void timer_reset(void) {
     uint32_t s = save_and_disable_interrupts();
     t->segundos = 0;
     restore_interrupts(s);
-
     running = false;
-    timeout_flag = false;
 }
 
 void timer_tick_isr(void) {
     if (t == NULL) return;
+    if (!running) return;
 
     if (t->segundos > 0) {
         t->segundos--;
