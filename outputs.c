@@ -168,7 +168,7 @@ void action_show_zero(void) {
     draw_time_mmss(0);
 }
 
-/* Pitido de 800 ms sin bloquear (no depende de outputs_update) */
+/* Pitido de 2000 ms sin bloquear (no depende de outputs_update) */
 void action_buzzer_on(void) {
     // Si había una alarma previa, la cancelamos para no solapar pitidos
     if (buzzer_alarm_id >= 0) {
@@ -180,7 +180,7 @@ void action_buzzer_on(void) {
     buzzer_set(true);
 
     // Programa apagado automático en 800 ms
-    buzzer_alarm_id = add_alarm_in_ms(800, buzzer_alarm_cb, NULL, false);
+    buzzer_alarm_id = add_alarm_in_ms(2000, buzzer_alarm_cb, NULL, false);
 }
 
 /* Por si se quiere apagar manualmente desde fuera */
@@ -194,5 +194,6 @@ void action_buzzer_off(void) {
     buzzer_active = false;
     buzzer_set(false);
 }
+
 
 
