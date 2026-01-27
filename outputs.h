@@ -16,5 +16,6 @@ void outputs_off(void);
 void action_show_zero(void);
 void action_buzzer_on(void);
 void action_buzzer_off(void);
+void action_reset_all(void);  
 
 #endif
