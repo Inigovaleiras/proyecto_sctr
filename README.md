@@ -9,3 +9,5 @@ Integrantes:
 
 Descripción:
 Simulación de microondas con arquitectura modular (FSM table-driven + módulos de entradas, temporizador y salidas).
+
+- Esquema eléctrico y montaje: [docs/Esquema-eléctrico-y-montaje.pdf](docs/Esquema-eléctrico-y-montaje.pdf)
