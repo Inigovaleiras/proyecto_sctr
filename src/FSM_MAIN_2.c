@@ -1,4 +1,9 @@
 #include <stdbool.h>
+#include <stdint.h>
+
+#include "inputs.h"
+#include "timer.h"
+#include "outputs.h"
 
 /* =======================
    ESTADOS
@@ -29,115 +34,100 @@ typedef enum {
 } eventos;
 
 /* =======================
-   ESTRUCTURAS EXTERNAS
+   INPUTS snapshot (1 lectura por ciclo)
    ======================= */
 
-typedef struct {
-    bool suma30;
-    bool resta30;
-    bool start;
-    bool puerta_abierta;
-    bool puerta_cerrada;
-} inputs;
-
-typedef struct {
-    int segundos;
-} timer;
-
-/* =======================
-   PROTOTIPOS
-   ======================= */
-
-inputs read_inputs(void);
-timer  timer_get(void);
-
-/* acciones (salidas / timer) */
-void action_show_zero(void);
-void action_start_timer(void);
-void action_stop_timer(void);
-void action_buzzer_on(void);
-void action_reset_all(void);
-
-/* funciones de timer (NUEVO) */
-void timer_add_30(void);
-void timer_sub_30(void);
+static inputs g_in;
 
 /* =======================
    GENERADOR DE EVENTOS
    ======================= */
 
-eventos generador_eventos(inputs in, timer t)
+static eventos generador_eventos(estados st, inputs in, timer t)
 {
-    if (in.suma30 || in.resta30) {
-        return EV_INTRODUCE_TIEMPO;
-    }
+    switch (st) {
 
-    if (in.start && in.puerta_cerrada && t.segundos > 0) {
-        return EV_CALENTAR;
-    }
+        case STATE_OFF:
+            if (in.suma30 || in.resta30) return EV_INTRODUCE_TIEMPO;
+            return EV_NONE;
 
-    if (in.puerta_abierta) {
-        return EV_PARAR;
-    }
+        case STATE_CONFIG:
+            if (in.suma30 || in.resta30) return EV_INTRODUCE_TIEMPO;
+            if (in.start && in.puerta_cerrada && t.segundos > 0) return EV_CALENTAR;
+            return EV_NONE;
 
-    if (in.puerta_cerrada) {
-        return EV_REANUDAR;
-    }
+        case STATE_HEATING:
+            /* microondas real: START suele pausar/stop */
+            if (in.start) return EV_PARAR;
 
-    if (t.segundos == 0) {
-        return EV_TERMINADO;
-    }
+            /* pausa por puerta */
+            if (in.puerta_abierta) return EV_PARAR;
 
-    return EV_NONE;
+            /* fin */
+            if (t.segundos == 0)  return EV_TERMINADO;
+
+            return EV_NONE;
+
+        case STATE_PAUSE:
+            /* FIX crítico: si llegas a PAUSE y el tiempo cae a 0, no te quedas muerto */
+            if (t.segundos == 0) return EV_TERMINADO;
+
+            /* reanudar cuando se cierre la puerta y aún quede tiempo */
+            if (in.start && in.puerta_cerrada && t.segundos > 0) return EV_REANUDAR;
+
+            return EV_NONE;
+
+        case STATE_DONE:
+            /* aquí usamos START como “reset” (tu diseño actual) */
+            if (in.start) return EV_RESET;
+            return EV_NONE;
+
+        default:
+            return EV_NONE;
+    }
 }
 
 /* =======================
    TRANSICIONES
    ======================= */
 
-estados trans_off_introducir_tiempo(void)
+static estados trans_off_introducir_tiempo(void)
 {
+    if (g_in.suma30)  timer_add_30();
+    if (g_in.resta30) timer_sub_30();
     return STATE_CONFIG;
 }
 
 /* --- CONFIG --- */
 
-estados trans_config_introducir_tiempo(void)
+static estados trans_config_introducir_tiempo(void)
 {
-    /* la FSM decide, el timer ejecuta */
-    inputs in = read_inputs();
-
-    if (in.suma30) {
-        timer_add_30();
-    }
-    if (in.resta30) {
-        timer_sub_30();
-    }
-
+    if (g_in.suma30)  timer_add_30();
+    if (g_in.resta30) timer_sub_30();
     return STATE_CONFIG;
 }
 
-estados trans_config_calentar(void)
+static estados trans_config_calentar(void)
 {
     action_start_timer();
     return STATE_HEATING;
 }
 
-estados trans_config_reset(void)
-{
-    action_reset_all();
-    return STATE_OFF;
-}
-
-/* --- HEATING --- */
-
-estados trans_heating_parar(void)
+static estados trans_config_parar(void)
 {
     action_stop_timer();
     return STATE_PAUSE;
 }
 
-estados trans_heating_terminado(void)
+/* --- HEATING --- */
+
+static estados trans_heating_parar(void)
+{
+    action_stop_timer();
+    return STATE_PAUSE;
+}
+
+static estados trans_heating_terminado(void)
 {
     action_stop_timer();
     action_buzzer_on();
@@ -147,17 +137,26 @@ estados trans_heating_terminado(void)
 
 /* --- PAUSE --- */
 
-estados trans_pause_reanudar(void)
+static estados trans_pause_reanudar(void)
 {
     action_start_timer();
     return STATE_HEATING;
 }
 
+static estados trans_pause_terminado(void)
+{
+    action_stop_timer();
+    action_buzzer_on();
+    action_show_zero();
+    return STATE_DONE;
+}
+
 /* --- DONE --- */
 
-estados trans_done_reset(void)
+static estados trans_done_reset(void)
 {
     action_reset_all();
+    timer_reset();
     return STATE_OFF;
 }
 
@@ -165,7 +164,7 @@ estados trans_done_reset(void)
    TABLA DE TRANSICIONES
    ======================= */
 
-estados (*trans_table[N_STATES][N_EVENTS])(void) = {
+static estados (*trans_table[N_STATES][N_EVENTS])(void) = {
 
     [STATE_OFF] = {
         [EV_INTRODUCE_TIEMPO] = trans_off_introducir_tiempo,
@@ -173,17 +172,18 @@ estados (*trans_table[N_STATES][N_EVENTS])(void) = {
 
     [STATE_CONFIG] = {
         [EV_INTRODUCE_TIEMPO] = trans_config_introducir_tiempo,
-        [EV_CALENTAR]        = trans_config_calentar,
-        [EV_RESET]           = trans_config_reset,
+        [EV_CALENTAR]         = trans_config_calentar,
+        [EV_PARAR]            = trans_config_parar,
     },
 
     [STATE_HEATING] = {
-        [EV_PARAR]     = trans_heating_parar,
-        [EV_TERMINADO] = trans_heating_terminado,
+        [EV_PARAR]      = trans_heating_parar,
+        [EV_TERMINADO]  = trans_heating_terminado,
     },
 
     [STATE_PAUSE] = {
-        [EV_REANUDAR] = trans_pause_reanudar,
+        [EV_REANUDAR]   = trans_pause_reanudar,
+        [EV_TERMINADO]  = trans_pause_terminado, /* FIX crítico */
     },
 
     [STATE_DONE] = {
@@ -195,11 +195,9 @@ estados (*trans_table[N_STATES][N_EVENTS])(void) = {
    FSM STEP
    ======================= */
 
-estados fsm_step(estados estado_actual, eventos evento_actual)
+static estados fsm_step(estados estado_actual, eventos evento_actual)
 {
-    if (evento_actual >= N_EVENTS) {
-        return estado_actual;
-    }
+    if (evento_actual >= N_EVENTS) return estado_actual;
 
     if (trans_table[estado_actual][evento_actual]) {
         return trans_table[estado_actual][evento_actual]();
@@ -215,36 +213,70 @@ estados fsm_step(estados estado_actual, eventos evento_actual)
 int main(void)
 {
     estados estado_actual = STATE_OFF;
-    eventos evento_actual;
+    estados estado_prev   = N_STATES;
 
-    inputs entradas;
-    timer temporizador;
+    outputs_init();
+    inputs_init();
+
+    timer temporizador = { .segundos = 0 };
+    timer_init(&temporizador);
 
     while (1) {
 
-        entradas     = read_inputs();
+        /* 1) inputs (1 lectura por ciclo) */
+        g_in = read_inputs();
+
+        /* 2) snapshot del tiempo */
         temporizador = timer_get();
 
-        evento_actual = generador_eventos(entradas, temporizador);
+        /* 3) evento */
+        eventos evento_actual = generador_eventos(estado_actual, g_in, temporizador);
+
+        /* 4) transición */
         estado_actual = fsm_step(estado_actual, evento_actual);
 
-        /* refresco de salidas según estado */
-        switch (estado_actual) {
+        /* 5) refresca tiempo (por si +30/-30 en transición) */
+        temporizador = timer_get();
 
+        /* 6) acciones “al entrar” (evitar repintar en bucle OFF/DONE) */
+        if (estado_actual != estado_prev) {
+            if (estado_actual == STATE_OFF) {
+                action_show_zero();
+            } else if (estado_actual == STATE_DONE) {
+                action_show_zero();
+            }
+            estado_prev = estado_actual;
+        }
+
+        /* 7) salidas continuas */
+        switch (estado_actual) {
             case STATE_CONFIG:
+                action_show_zero();
+                break;
             case STATE_HEATING:
+                action_show_zero();
+                break;
             case STATE_PAUSE:
                 outputs_update(temporizador);
                 break;
 
-            case STATE_DONE:
-                action_show_zero();
-                break;
-
             case STATE_OFF:
+                action_show_zero();
+            case STATE_DONE:
             default:
-                outputs_off();
+                /* OFF y DONE ya se manejan en “al entrar” */
                 break;
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
